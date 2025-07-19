@@ -1,0 +1,23 @@
+{
+  "name": "limitless-discord-bot",
+  "version": "1.0.0",
+  "description": "A multipurpose Discord bot",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "deploy": "node deployCommands.js",
+    "clear": "node clearCommands.js"
+  },
+  "keywords": ["discord", "bot", "multipurpose"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "mongoose": "^8.0.3",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
