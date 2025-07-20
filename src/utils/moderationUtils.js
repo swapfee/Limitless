@@ -93,6 +93,8 @@ function formatModerationType(type) {
         'unban': 'Unban',
         'kick': 'Kick',
         'softban': 'Softban',
+        'mute': 'Mute',
+        'unmute': 'Unmute',
         'timeout': 'Timeout',
         'warn': 'Warning'
     };

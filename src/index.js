@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const fs = require('fs');
 const path = require('path');
 const TempBanManager = require('./utils/tempBanManager');
+const TempMuteManager = require('./utils/tempMuteManager');
 
 // Create a new client instance
 const client = new Client({
@@ -38,6 +39,10 @@ mongoose.connect(process.env.MONGODB_URI).then(() => {
     // Initialize TempBan Manager after MongoDB connection
     client.tempBanManager = new TempBanManager(client);
     client.tempBanManager.start(); // Check every 30 seconds by default
+    
+    // Initialize TempMute Manager after MongoDB connection
+    client.tempMuteManager = new TempMuteManager(client);
+    client.tempMuteManager.start(); // Check every 30 seconds by default
     
 }).catch((error) => {
     console.error('❌ Error connecting to MongoDB:', error);
