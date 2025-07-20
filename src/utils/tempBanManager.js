@@ -1,5 +1,6 @@
 const TempBan = require('../models/TempBan');
 const { createEmbed } = require('./embedUtils');
+const { createModerationCase } = require('./moderationUtils');
 
 class TempBanManager {
     constructor(client) {
@@ -138,6 +139,27 @@ class TempBanManager {
                 targetUser = { tag: 'Unknown User', id: ban.userId };
             }
 
+            // Create moderation case for the automatic unban
+            let caseId;
+            try {
+                caseId = await createModerationCase({
+                    guildId: guild.id,
+                    type: 'unban',
+                    target: { id: targetUser.id, tag: targetUser.tag },
+                    executor: { id: this.client.user.id, tag: this.client.user.tag }, // Bot as executor
+                    reason: `Automatic unban - temporary ban expired (original duration: ${ban.banDuration})`,
+                    additionalInfo: {
+                        automatic: true,
+                        originalExecutor: ban.executorId,
+                        originalReason: ban.reason,
+                        originalDuration: ban.banDuration
+                    }
+                });
+            } catch (error) {
+                console.error('Error creating moderation case for automatic unban:', error);
+                caseId = Date.now(); // Fallback to timestamp
+            }
+
             const logEmbed = await createEmbed(guild.id, {
                 title: 'Moderation Action: Automatic Unban',
                 description: 'A temporarily banned user has been automatically unbanned.',
@@ -179,7 +201,7 @@ class TempBanManager {
                     }
                 ],
                 footer: {
-                    text: `Unban Case ID: ${Date.now()}`
+                    text: `Case ID: #${caseId}`
                 }
             });
 

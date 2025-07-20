@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { createEmbed, createErrorEmbed } = require('../../utils/embedUtils');
 const { hasPermission, canExecuteOn } = require('../../utils/permissionUtils');
+const { createModerationCase } = require('../../utils/moderationUtils');
 const TempBan = require('../../models/TempBan');
 
 module.exports = {
@@ -143,8 +144,7 @@ module.exports = {
             }
             
             // Execute the temporary ban
-            const permissionSource = hasRealPermission ? 'discord' : 'fake';
-            await executeTempBan(interaction, guild, executor, targetUser, reason, deleteMessages, banDuration, timeString, permissionSource);
+            await executeTempBan(interaction, guild, executor, targetUser, reason, deleteMessages, banDuration, timeString);
             
         } catch (error) {
             console.error('Error in tempban command:', error);
@@ -219,9 +219,8 @@ function formatDuration(ms) {
  * @param {boolean} deleteMessages - Whether to delete messages
  * @param {number} banDuration - Duration in milliseconds
  * @param {string} timeString - Original time string
- * @param {string} permissionSource - 'discord' or 'fake'
  */
-async function executeTempBan(interaction, guild, executor, targetUser, reason, deleteMessages, banDuration, timeString, permissionSource) {
+async function executeTempBan(interaction, guild, executor, targetUser, reason, deleteMessages, banDuration, timeString) {
     // Execute the ban
     const banOptions = {
         reason: `Temporarily banned by ${executor.user.tag} for ${timeString}: ${reason}`,
@@ -244,7 +243,25 @@ async function executeTempBan(interaction, guild, executor, targetUser, reason, 
         deleteMessages: deleteMessages
     });
     
-    // No more setTimeout - the TempBanManager handles this automatically!
+    // Create moderation case
+    let caseId;
+    try {
+        caseId = await createModerationCase({
+            guildId: guild.id,
+            type: 'tempban',
+            target: { id: targetUser.id, tag: targetUser.tag },
+            executor: { id: executor.user.id, tag: executor.user.tag },
+            reason: reason,
+            duration: timeString,
+            expiresAt: new Date(unbanTime),
+            additionalInfo: {
+                deleteMessages: deleteMessages
+            }
+        });
+    } catch (error) {
+        console.error('Error creating moderation case:', error);
+        caseId = Date.now(); // Fallback to timestamp
+    }
     
     // Create success embed
     const tempbanEmbed = await createEmbed(guild.id, {
@@ -259,6 +276,11 @@ async function executeTempBan(interaction, guild, executor, targetUser, reason, 
             {
                 name: 'Banned By',
                 value: `${executor.user} (${executor.user.tag})`,
+                inline: true
+            },
+            {
+                name: 'Case ID',
+                value: `#${caseId}`,
                 inline: true
             },
             {
@@ -294,7 +316,8 @@ async function executeTempBan(interaction, guild, executor, targetUser, reason, 
         banDuration: timeString,
         unbanTime: unbanTime,
         deleteMessages: deleteMessages,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        caseId: caseId
     });
 }
 
@@ -305,31 +328,36 @@ async function executeTempBan(interaction, guild, executor, targetUser, reason, 
  */
 async function logTempBanAction(guild, logData) {
     try {
-        // Find jail-log channel
-        const logChannel = guild.channels.cache.find(channel => channel.name === 'jail-log');
+        const logChannelId = await getLogChannel(guild.id);
+        if (!logChannelId) {
+            console.log('Log channel not configured, skipping tempban log');
+            return;
+        }
+        
+        const logChannel = guild.channels.cache.get(logChannelId);
         if (!logChannel) {
-            console.log('Jail-log channel not found, skipping tempban log');
+            console.log('Log channel not found, skipping tempban log');
             return;
         }
         
         // Create detailed log embed
         const logEmbed = await createEmbed(guild.id, {
-            title: 'Moderation Action: Temporary Ban',
-            description: 'A user has been temporarily banned from the server.',
+            title: '🔨 Temporary Ban',
+            description: `${logData.target} has been temporarily banned from the server.`,
             fields: [
                 {
-                    name: 'Action',
-                    value: 'Temporary Ban',
-                    inline: true
-                },
-                {
                     name: 'Target',
-                    value: `${logData.target} (${logData.target.tag})\nID: ${logData.target.id}`,
+                    value: `${logData.target} (${logData.target.tag})`,
                     inline: true
                 },
                 {
                     name: 'Moderator',
-                    value: `${logData.executor} (${logData.executor.tag})\nID: ${logData.executor.id}`,
+                    value: `${logData.executor} (${logData.executor.tag})`,
+                    inline: true
+                },
+                {
+                    name: 'Case ID',
+                    value: `#${logData.caseId}`,
                     inline: true
                 },
                 {
@@ -338,29 +366,26 @@ async function logTempBanAction(guild, logData) {
                     inline: true
                 },
                 {
-                    name: 'Unban Time',
+                    name: 'Expires',
                     value: `<t:${Math.floor(logData.unbanTime / 1000)}:F>`,
                     inline: true
                 },
                 {
-                    name: 'Message Deletion',
-                    value: logData.deleteMessages ? 'Yes (7 days)' : 'No',
+                    name: 'Messages Deleted',
+                    value: logData.deleteMessages ? '7 days' : 'None',
                     inline: true
                 },
                 {
                     name: 'Reason',
                     value: logData.reason,
                     inline: false
-                },
-                {
-                    name: 'Timestamp',
-                    value: `<t:${Math.floor(logData.timestamp / 1000)}:F>`,
-                    inline: true
                 }
             ],
             footer: {
-                text: `Case ID: ${Date.now()}`
-            }
+                text: `User ID: ${logData.target.id} • Moderator ID: ${logData.executor.id}`
+            },
+            timestamp: new Date(),
+            color: 0xFF6B6B
         });
         
         await logChannel.send({ embeds: [logEmbed] });

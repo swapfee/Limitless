@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { createEmbed, createErrorEmbed } = require('../../utils/embedUtils');
 const { hasPermission, canExecuteOn } = require('../../utils/permissionUtils');
+const { createModerationCase } = require('../../utils/moderationUtils');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -137,10 +138,30 @@ module.exports = {
             // Immediately unban the user
             await guild.bans.remove(targetUser.id, `Softban unban by ${executor.user.tag} | ${reason}`);
 
+            // Create moderation case
+            let caseId;
+            try {
+                caseId = await createModerationCase({
+                    guildId: guild.id,
+                    type: 'softban',
+                    target: { id: targetUser.id, tag: targetUser.tag },
+                    executor: { id: executor.user.id, tag: executor.user.tag },
+                    reason: reason,
+                    additionalInfo: {
+                        deleteMessages: true,
+                        deleteMessageDays: deleteHistory,
+                        dmSent: dmSent
+                    }
+                });
+            } catch (error) {
+                console.error('Error creating moderation case:', error);
+                caseId = Date.now(); // Fallback to timestamp
+            }
+
             // Create success embed
             const successEmbed = createEmbed(
                 'Member Softbanned',
-                `**User:** ${targetUser.tag} (${targetUser.id})\n**Moderator:** ${executor.user.tag}\n**Reason:** ${reason}\n**Messages Deleted:** ${deleteHistory} day(s)\n**DM Sent:** ${dmSent ? 'Yes' : 'No'}`,
+                `**User:** ${targetUser.tag} (${targetUser.id})\n**Moderator:** ${executor.user.tag}\n**Case ID:** #${caseId}\n**Reason:** ${reason}\n**Messages Deleted:** ${deleteHistory} day(s)\n**DM Sent:** ${dmSent ? 'Yes' : 'No'}`,
                 'success'
             );
 
@@ -155,7 +176,7 @@ module.exports = {
                 if (logChannel) {
                     const logEmbed = createEmbed(
                         'Member Softbanned',
-                        `**User:** ${targetUser.tag} (${targetUser.id})\n**Moderator:** ${executor.user.tag} (${executor.id})\n**Reason:** ${reason}\n**Messages Deleted:** ${deleteHistory} day(s)\n**DM Sent:** ${dmSent ? 'Yes' : 'No'}\n**Time:** <t:${Math.floor(Date.now() / 1000)}:F>`,
+                        `**User:** ${targetUser.tag} (${targetUser.id})\n**Moderator:** ${executor.user.tag} (${executor.id})\n**Case ID:** #${caseId}\n**Reason:** ${reason}\n**Messages Deleted:** ${deleteHistory} day(s)\n**DM Sent:** ${dmSent ? 'Yes' : 'No'}\n**Time:** <t:${Math.floor(Date.now() / 1000)}:F>`,
                         'warning'
                     );
                     

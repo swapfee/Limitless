@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { createEmbed, createErrorEmbed } = require('../../utils/embedUtils');
 const { hasPermission, canExecuteOn } = require('../../utils/permissionUtils');
-const FakePermissions = require('../../models/FakePermissions');
+const { createModerationCase } = require('../../utils/moderationUtils');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -88,8 +88,7 @@ module.exports = {
             }
             
             // Execute the kick
-            const permissionSource = hasRealPermission ? 'discord' : 'fake';
-            await executeKick(interaction, guild, executor, targetMember, reason, permissionSource);
+            await executeKick(interaction, guild, executor, targetMember, reason);
             
         } catch (error) {
             console.error('Error in kick command:', error);
@@ -120,13 +119,27 @@ module.exports = {
  * @param {GuildMember} executor - The member executing the kick
  * @param {GuildMember} targetMember - The member being kicked
  * @param {string} reason - The reason for the kick
- * @param {string} permissionSource - 'discord' or 'fake'
  */
-async function executeKick(interaction, guild, executor, targetMember, reason, permissionSource) {
+async function executeKick(interaction, guild, executor, targetMember, reason) {
     // Execute the kick
     const kickReason = `Kicked by ${executor.user.tag}: ${reason}`;
     
     await targetMember.kick(kickReason);
+    
+    // Create moderation case
+    let caseId;
+    try {
+        caseId = await createModerationCase({
+            guildId: guild.id,
+            type: 'kick',
+            target: { id: targetMember.user.id, tag: targetMember.user.tag },
+            executor: { id: executor.user.id, tag: executor.user.tag },
+            reason: reason
+        });
+    } catch (error) {
+        console.error('Error creating moderation case:', error);
+        caseId = Date.now(); // Fallback to timestamp
+    }
     
     // Create success embed
     const kickEmbed = await createEmbed(guild.id, {
@@ -141,6 +154,11 @@ async function executeKick(interaction, guild, executor, targetMember, reason, p
             {
                 name: 'Kicked By',
                 value: `${executor.user} (${executor.user.tag})`,
+                inline: true
+            },
+            {
+                name: 'Case ID',
+                value: `#${caseId}`,
                 inline: true
             },
             {
@@ -163,8 +181,8 @@ async function executeKick(interaction, guild, executor, targetMember, reason, p
         executor: executor.user,
         target: targetMember.user,
         reason: reason,
-        permissionSource: permissionSource,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        caseId: caseId
     });
 }
 
@@ -214,7 +232,7 @@ async function logKickAction(guild, logData) {
                 }
             ],
             footer: {
-                text: `Case ID: ${Date.now()}`
+                text: `Case ID: #${logData.caseId}`
             }
         });
         

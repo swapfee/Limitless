@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { createEmbed, createErrorEmbed } = require('../../utils/embedUtils');
 const { hasPermission, canExecuteOn } = require('../../utils/permissionUtils');
+const { createModerationCase } = require('../../utils/moderationUtils');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -85,8 +86,7 @@ module.exports = {
             }
             
             // Execute the ban
-            const permissionSource = hasRealPermission ? 'discord' : 'fake';
-            await executeBan(interaction, guild, executor, targetUser, reason, deleteMessages, permissionSource);
+            await executeBan(interaction, guild, executor, targetUser, reason, deleteMessages);
             
         } catch (error) {
             console.error('Error in ban command:', error);
@@ -118,9 +118,8 @@ module.exports = {
  * @param {User} targetUser - The user being banned
  * @param {string} reason - The reason for the ban
  * @param {boolean} deleteMessages - Whether to delete messages
- * @param {string} permissionSource - 'discord' or 'fake'
  */
-async function executeBan(interaction, guild, executor, targetUser, reason, deleteMessages, permissionSource) {
+async function executeBan(interaction, guild, executor, targetUser, reason, deleteMessages) {
     // Execute the ban
     const banOptions = {
         reason: `Banned by ${executor.user.tag}: ${reason}`,
@@ -128,6 +127,24 @@ async function executeBan(interaction, guild, executor, targetUser, reason, dele
     };
     
     await guild.members.ban(targetUser, banOptions);
+    
+    // Create moderation case
+    let caseId;
+    try {
+        caseId = await createModerationCase({
+            guildId: guild.id,
+            type: 'ban',
+            target: { id: targetUser.id, tag: targetUser.tag },
+            executor: { id: executor.user.id, tag: executor.user.tag },
+            reason: reason,
+            additionalInfo: {
+                deleteMessages: deleteMessages
+            }
+        });
+    } catch (error) {
+        console.error('Error creating moderation case:', error);
+        caseId = Date.now(); // Fallback to timestamp
+    }
     
     // Create success embed
     const banEmbed = await createEmbed(guild.id, {
@@ -142,6 +159,11 @@ async function executeBan(interaction, guild, executor, targetUser, reason, dele
             {
                 name: 'Banned By',
                 value: `${executor.user} (${executor.user.tag})`,
+                inline: true
+            },
+            {
+                name: 'Case ID',
+                value: `#${caseId}`,
                 inline: true
             },
             {
@@ -164,14 +186,14 @@ async function executeBan(interaction, guild, executor, targetUser, reason, dele
     
     await interaction.editReply({ embeds: [banEmbed] });
     
-    // Log to jail-log channel
+        // Log to jail-log channel
     await logBanAction(guild, {
         executor: executor.user,
         target: targetUser,
         reason: reason,
-        permissionSource: permissionSource,
         deleteMessages: deleteMessages,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        caseId: caseId
     });
 }
 
@@ -226,7 +248,7 @@ async function logBanAction(guild, logData) {
                 }
             ],
             footer: {
-                text: `Case ID: ${Date.now()}`
+                text: `Case ID: #${logData.caseId}`
             }
         });
         
