@@ -53,25 +53,19 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        await interaction.deferReply();
-        
         const executor = interaction.member;
         const guild = interaction.guild;
         
-        // Check permissions - need either real or fake moderation permissions
-        const hasRealPermission = executor.permissions.has(PermissionFlagsBits.ModerateMembers) ||
-                                executor.permissions.has(PermissionFlagsBits.BanMembers) ||
-                                executor.permissions.has(PermissionFlagsBits.KickMembers);
+        const hasRealPermission = executor.permissions.has(PermissionFlagsBits.ViewAuditLog);
         
-        const hasFakePermission = await hasPermission(executor, 'ban_members') ||
-                                 await hasPermission(executor, 'kick_members');
+        const hasFakePermission = await hasPermission(executor, 'view_audit_log');
 
         if (!hasRealPermission && !hasFakePermission.hasPermission) {
             const errorEmbed = createErrorEmbed(
                 'Insufficient Permissions',
                 'You need moderation permissions to view case information.'
             );
-            await interaction.editReply({ embeds: [errorEmbed] });
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
             return;
         }
 
@@ -91,7 +85,7 @@ module.exports = {
                 'Command Error',
                 'An error occurred while processing your request.'
             );
-            await interaction.editReply({ embeds: [errorEmbed] });
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
     },
 };
@@ -111,7 +105,7 @@ async function handleCaseLookup(interaction, guild) {
             'Case Not Found',
             `No case found with ID #${caseId}`
         );
-        await interaction.editReply({ embeds: [errorEmbed] });
+        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         return;
     }
 
@@ -200,7 +194,7 @@ async function handleCaseLookup(interaction, guild) {
         }
     }
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed] });
 }
 
 /**
@@ -219,7 +213,7 @@ async function handleUserHistory(interaction, guild) {
             title: 'No Cases Found',
             description: `No moderation cases found for ${targetUser.tag}`,
         });
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.reply({ embeds: [embed] });
         return;
     }
 
@@ -236,7 +230,7 @@ async function handleUserHistory(interaction, guild) {
         }
     });
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed] });
 }
 
 /**
@@ -254,7 +248,7 @@ async function handleRecentCases(interaction, guild) {
             title: 'No Cases Found',
             description: 'No moderation cases found for this server',
         });
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.reply({ embeds: [embed] });
         return;
     }
 
@@ -271,5 +265,5 @@ async function handleRecentCases(interaction, guild) {
         }
     });
 
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed] });
 }

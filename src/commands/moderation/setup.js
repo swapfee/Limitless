@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const { createEmbed, createSuccessEmbed, createErrorEmbed } = require('../../utils/embedUtils');
+const JailConfig = require('../../models/JailConfig');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -8,8 +9,6 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     
     async execute(interaction) {
-        await interaction.deferReply();
-        
         const guild = interaction.guild;
         const setupResults = {
             roles: [],
@@ -85,7 +84,6 @@ module.exports = {
             
             for (const channelData of channelsToCreate) {
                 try {
-                    // Check if channel already exists
                     let existingChannel = guild.channels.cache.find(channel => channel.name === channelData.name);
                     
                     if (!existingChannel) {
@@ -104,6 +102,30 @@ module.exports = {
             }
             
             await setupPermissions(guild, setupResults);
+            
+            // Save jail configuration to database
+            try {
+                const jailChannel = guild.channels.cache.find(channel => channel.name === 'jail');
+                const jailLogChannel = guild.channels.cache.find(channel => channel.name === 'jail-log');
+                const jailedRole = guild.roles.cache.find(role => role.name === 'Jailed');
+                
+                if (jailChannel) {
+                    await JailConfig.setJailChannel(guild.id, jailChannel.id);
+                    setupResults.roles.push('Jail channel saved to database');
+                }
+                
+                if (jailLogChannel) {
+                    await JailConfig.setJailLogChannel(guild.id, jailLogChannel.id);
+                    setupResults.roles.push('Jail log channel saved to database');
+                }
+                
+                if (jailedRole) {
+                    await JailConfig.setJailRole(guild.id, jailedRole.id);
+                    setupResults.roles.push('Jailed role saved to database');
+                }
+            } catch (error) {
+                setupResults.errors.push(`Failed to save jail configuration to database: ${error.message}`);
+            }
             
             const embed = await createEmbed(guild.id, {
                 title: 'Moderation System Setup Complete',
@@ -140,7 +162,7 @@ module.exports = {
                 });
             }
             
-            await interaction.editReply({ embeds: [embed] });
+            await interaction.reply({ embeds: [embed] });
             
         } catch (error) {
             console.error('Error in setup command:', error);
@@ -148,7 +170,7 @@ module.exports = {
                 'Setup Failed',
                 `An error occurred during setup: ${error.message}`
             );
-            await interaction.editReply({ embeds: [errorEmbed] });
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
     },
 };

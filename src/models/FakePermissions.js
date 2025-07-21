@@ -21,6 +21,7 @@ const fakePermissionsSchema = new mongoose.Schema({
             'manage_channels',
             'manage_nicknames',
             'view_audit_log',
+            'manage_guild',
             'administrator'
         ]
     }],

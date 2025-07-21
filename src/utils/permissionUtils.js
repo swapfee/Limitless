@@ -1,5 +1,7 @@
 const FakePermissions = require('../models/FakePermissions');
 const StaffConfig = require('../models/StaffConfig');
+const JailConfig = require('../models/JailConfig');
+const AntiNukeConfig = require('../models/AntiNukeConfig');
 const { PermissionFlagsBits } = require('discord.js');
 
 /**
@@ -155,11 +157,252 @@ function getPermissionSourceDescription(source) {
     }
 }
 
+/**
+ * Get the jail log channel ID for a guild
+ * @param {string} guildId - The guild ID
+ * @param {Guild} guild - The Discord guild object (optional, for fallback lookup)
+ * @returns {Promise<string|null>} - The channel ID or null if not found
+ */
+async function getLogChannel(guildId, guild = null) {
+    // First try to get from database
+    const logChannelId = await JailConfig.getJailLogChannelId(guildId);
+    if (logChannelId) {
+        return logChannelId;
+    }
+    
+    // Fallback to searching by name if database doesn't have it
+    if (guild) {
+        const logChannel = guild.channels.cache.find(channel => channel.name === 'jail-log');
+        if (logChannel) {
+            // Save to database for future use
+            await JailConfig.setJailLogChannel(guildId, logChannel.id);
+            return logChannel.id;
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Get the antinuke log channel ID for a guild (same as jail-log channel)
+ * @param {string} guildId - The guild ID
+ * @param {Guild} guild - The Discord guild object (optional, for fallback lookup)
+ * @returns {Promise<string|null>} - The channel ID or null if not found
+ */
+async function getAntiNukeLogChannel(guildId, guild = null) {
+    // AntiNuke logs go to the same channel as jail logs
+    return await getLogChannel(guildId, guild);
+}
+
+/**
+ * Get the jail channel ID for a guild
+ * @param {string} guildId - The guild ID
+ * @param {Guild} guild - The Discord guild object (optional, for fallback lookup)
+ * @returns {Promise<string|null>} - The channel ID or null if not found
+ */
+async function getJailChannel(guildId, guild = null) {
+    // First try to get from database
+    const jailChannelId = await JailConfig.getJailChannelId(guildId);
+    if (jailChannelId) {
+        return jailChannelId;
+    }
+    
+    // Fallback to searching by name if database doesn't have it
+    if (guild) {
+        const jailChannel = guild.channels.cache.find(channel => channel.name === 'jail');
+        if (jailChannel) {
+            // Save to database for future use
+            await JailConfig.setJailChannel(guildId, jailChannel.id);
+            return jailChannel.id;
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Get both jail-related channel IDs for a guild
+ * @param {string} guildId - The guild ID  
+ * @param {Guild} guild - The Discord guild object
+ * @returns {Promise<{jailChannelId: string|null, logChannelId: string|null}>}
+ */
+async function getJailChannels(guildId, guild) {
+    const jailChannelId = await getJailChannel(guildId, guild);
+    const logChannelId = await getLogChannel(guildId, guild);
+    
+    return {
+        jailChannelId,
+        logChannelId
+    };
+}
+
+/**
+ * Get jail role ID for a guild
+ * @param {string} guildId - The guild ID
+ * @param {Guild} guild - The Discord guild object (optional, for fallback lookup)
+ * @returns {Promise<string|null>} - The role ID or null if not found
+ */
+async function getJailRole(guildId, guild = null) {
+    // First try to get from database
+    const jailRoleId = await JailConfig.getJailRoleId(guildId);
+    if (jailRoleId) {
+        return jailRoleId;
+    }
+    
+    // Fallback to searching by name if database doesn't have it
+    if (guild) {
+        const jailRole = guild.roles.cache.find(role => role.name === 'Jailed');
+        if (jailRole) {
+            // Save to database for future use
+            await JailConfig.setJailRole(guildId, jailRole.id);
+            return jailRole.id;
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * Check if a user can configure antinuke settings
+ * Only server owner and designated antinuke admins can configure
+ * @param {GuildMember} member - The guild member to check
+ * @param {string} guildId - The guild ID
+ * @returns {Promise<{canConfigure: boolean, reason: string, source: string}>}
+ */
+async function canConfigureAntiNuke(member, guildId) {
+    // Check if user is the server owner
+    if (member.guild.ownerId === member.user.id) {
+        return { 
+            canConfigure: true, 
+            reason: 'Server owner', 
+            source: 'owner' 
+        };
+    }
+    
+    // Get antinuke config
+    const config = await AntiNukeConfig.getOrCreateConfig(guildId);
+    
+    // Check if user is an antinuke admin
+    if (config.isAntiNukeAdmin(member.user.id)) {
+        return { 
+            canConfigure: true, 
+            reason: 'AntiNuke admin', 
+            source: 'admin' 
+        };
+    }
+    
+    return { 
+        canConfigure: false, 
+        reason: 'Only server owner and antinuke admins can configure antinuke settings', 
+        source: 'none' 
+    };
+}
+
+/**
+ * Check if a user is whitelisted from antinuke actions
+ * @param {GuildMember} member - The guild member to check
+ * @param {string} guildId - The guild ID
+ * @returns {Promise<{isWhitelisted: boolean, reason: string}>}
+ */
+async function isAntiNukeWhitelisted(member, guildId) {
+    const config = await AntiNukeConfig.getOrCreateConfig(guildId);
+    
+    // Check if antinuke is disabled
+    if (!config.enabled) {
+        return { 
+            isWhitelisted: true, 
+            reason: 'AntiNuke is disabled' 
+        };
+    }
+    
+    // Check if user is whitelisted
+    const isWhitelisted = config.isWhitelisted(
+        member.user.id,
+        member.roles.cache.map(r => r.id),
+        member.guild.ownerId === member.user.id,
+        member.user.bot
+    );
+    
+    if (isWhitelisted) {
+        return { 
+            isWhitelisted: true, 
+            reason: 'User is whitelisted' 
+        };
+    }
+    
+    return { 
+        isWhitelisted: false, 
+        reason: 'User is not whitelisted' 
+    };
+}
+
+/**
+ * Get dangerous permissions that should be monitored
+ * @returns {string[]} Array of dangerous permission names
+ */
+function getDangerousPermissions() {
+    return [
+        'administrator',
+        'manage_guild',
+        'manage_roles', 
+        'manage_channels',
+        'manage_webhooks',
+        'ban_members',
+        'kick_members',
+        'manage_messages',
+        'manage_nicknames',
+        'view_audit_log',
+        'manage_emojis'
+    ];
+}
+
+/**
+ * Check if a permission change involves dangerous permissions
+ * @param {object} oldPermissions - Old permission overwrites
+ * @param {object} newPermissions - New permission overwrites
+ * @returns {boolean} True if dangerous permissions were added
+ */
+function hasDangerousPermissionChange(oldPermissions, newPermissions) {
+    const dangerousPerms = [
+        PermissionFlagsBits.Administrator,
+        PermissionFlagsBits.ManageGuild,
+        PermissionFlagsBits.ManageRoles,
+        PermissionFlagsBits.ManageChannels,
+        PermissionFlagsBits.ManageWebhooks,
+        PermissionFlagsBits.BanMembers,
+        PermissionFlagsBits.KickMembers,
+        PermissionFlagsBits.ManageMessages,
+        PermissionFlagsBits.ViewAuditLog
+    ];
+    
+    // Check if any dangerous permissions were added
+    for (const perm of dangerousPerms) {
+        const hadPerm = oldPermissions && oldPermissions.has(perm);
+        const hasPerm = newPermissions && newPermissions.has(perm);
+        
+        // If permission was added (didn't have it before, but has it now)
+        if (!hadPerm && hasPerm) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
 module.exports = {
     hasPermission,
     hasRealPermission,
     isWhitelisted,
     canExecuteOn,
     getDiscordPermission,
-    getPermissionSourceDescription
+    getPermissionSourceDescription,
+    getLogChannel,
+    getAntiNukeLogChannel,
+    getJailChannel,
+    getJailChannels,
+    getJailRole,
+    canConfigureAntiNuke,
+    isAntiNukeWhitelisted,
+    getDangerousPermissions,
+    hasDangerousPermissionChange
 };

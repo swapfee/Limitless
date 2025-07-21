@@ -21,8 +21,6 @@ module.exports = {
                 .setRequired(false)),
     
     async execute(interaction) {
-        await interaction.deferReply();
-        
         const targetUser = interaction.options.getUser('user');
         const reason = interaction.options.getString('reason') || 'No reason provided';
         const deleteMessages = interaction.options.getBoolean('delete_messages') ?? false;
@@ -35,8 +33,7 @@ module.exports = {
                 'Cannot Execute Ban',
                 'You cannot ban yourself.'
             );
-            await interaction.editReply({ embeds: [errorEmbed] });
-            return;
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
         
         try {
@@ -48,8 +45,8 @@ module.exports = {
                     'Insufficient Permissions',
                     'You do not have permission to ban members.'
                 );
-                await interaction.editReply({ embeds: [errorEmbed] });
-                return;
+                return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+                
             }
             
             let targetMember;
@@ -70,7 +67,7 @@ module.exports = {
                             'Cannot Execute Ban', 
                             'You cannot ban users with equal or higher roles.'
                         );
-                        await interaction.editReply({ embeds: [errorEmbed] });
+                        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                         return;
                     }
                 }
@@ -79,7 +76,7 @@ module.exports = {
                     const canExecute = await canExecuteOn(executor, targetMember, 'ban_members');
                     if (!canExecute.canExecute) {
                         const errorEmbed = createErrorEmbed('Cannot Execute Ban', canExecute.reason);
-                        await interaction.editReply({ embeds: [errorEmbed] });
+                        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                         return;
                     }
                 }
@@ -105,7 +102,7 @@ module.exports = {
             }
             
             const errorEmbed = createErrorEmbed('Ban Failed', errorMessage);
-            await interaction.editReply({ embeds: [errorEmbed] });
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
     },
 };
@@ -184,7 +181,7 @@ async function executeBan(interaction, guild, executor, targetUser, reason, dele
         ]
     });
     
-    await interaction.editReply({ embeds: [banEmbed] });
+    await interaction.reply({ embeds: [banEmbed] });
     
         // Log to jail-log channel
     await logBanAction(guild, {

@@ -38,7 +38,7 @@ async function createEmbed(guildId, options = {}) {
 function createSuccessEmbed(title, description) {
     return new EmbedBuilder()
         .setColor('#28a745') // Success green
-        .setTitle(`✅ ${title}`)
+        .setTitle(title)
         .setDescription(description)
         .setTimestamp();
 }
@@ -66,7 +66,7 @@ function createErrorEmbed(title, description) {
 function createWarningEmbed(title, description) {
     return new EmbedBuilder()
         .setColor('#ffc107') // Warning yellow
-        .setTitle(`⚠️ ${title}`)
+        .setTitle(title)
         .setDescription(description)
         .setTimestamp();
 }
@@ -80,7 +80,7 @@ function createWarningEmbed(title, description) {
 function createInfoEmbed(title, description) {
     return new EmbedBuilder()
         .setColor('#17a2b8') // Info blue
-        .setTitle(`ℹ️ ${title}`)
+        .setTitle(title)
         .setDescription(description)
         .setTimestamp();
 }

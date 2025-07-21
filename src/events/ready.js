@@ -1,4 +1,4 @@
-const { Events } = require('discord.js');
+const { Events, ActivityType } = require('discord.js');
 
 module.exports = {
     name: Events.ClientReady,
@@ -10,8 +10,8 @@ module.exports = {
         
         client.user.setPresence({
             activities: [{
-                name: 'with Discord.js',
-                type: 'PLAYING'
+                name: 'Protecting servers with AntiNuke',
+                type: ActivityType.Watching
             }],
             status: 'dnd'
         });

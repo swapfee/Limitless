@@ -12,7 +12,7 @@ const moderationCaseSchema = new mongoose.Schema({
     type: {
         type: String,
         required: true,
-        enum: ['ban', 'tempban', 'unban', 'kick', 'softban', 'timeout', 'warn']
+        enum: ['ban', 'tempban', 'unban', 'kick', 'softban', 'timeout', 'warn', 'unwarn', 'clearwarns', 'mute', 'unmute', 'imute', 'iunmute', 'rmute', 'runmute', 'jail', 'unjail', 'lockdown', 'lockdown_all', 'unlock', 'unlock_all', 'unlock_mass']
     },
     targetUserId: {
         type: String,

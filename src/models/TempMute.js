@@ -22,6 +22,11 @@ const tempMuteSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    muteType: {
+        type: String,
+        enum: ['mute', 'imute', 'rmute', 'jail'],
+        default: 'mute'
+    },
     unmuteTime: {
         type: Date,
         required: true,

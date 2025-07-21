@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const { createEmbed, createErrorEmbed } = require('../../utils/embedUtils');
 const FakePermissions = require('../../models/FakePermissions');
-
+//This will be only accessed for server owner and anti-nuke admins. 
 const PERMISSION_DESCRIPTIONS = {
     'ban_members': 'Ban members from the server',
     'kick_members': 'Kick members from the server',
@@ -95,8 +95,6 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     
     async execute(interaction) {
-        await interaction.deferReply();
-        
         const subcommand = interaction.options.getSubcommand();
         const guild = interaction.guild;
         
@@ -127,7 +125,7 @@ module.exports = {
                 'Fake Permissions Failed',
                 `An error occurred while managing fake permissions: ${error.message}`
             );
-            await interaction.editReply({ embeds: [errorEmbed] });
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
     },
 };
@@ -166,10 +164,10 @@ async function handleGrant(interaction, guild) {
             ]
         });
         
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.reply({ embeds: [embed] });
     } else {
         const errorEmbed = createErrorEmbed('Permission Grant Failed', result.message);
-        await interaction.editReply({ embeds: [errorEmbed] });
+        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
 }
 
@@ -202,10 +200,10 @@ async function handleRevoke(interaction, guild) {
             ]
         });
         
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.reply({ embeds: [embed] });
     } else {
         const errorEmbed = createErrorEmbed('Permission Revoke Failed', result.message);
-        await interaction.editReply({ embeds: [errorEmbed] });
+        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
 }
 
@@ -226,7 +224,7 @@ async function handleList(interaction, guild) {
             ]
         });
         
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.reply({ embeds: [embed] });
         return;
     }
     
@@ -252,7 +250,7 @@ async function handleList(interaction, guild) {
         ]
     });
     
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed] });
 }
 
 async function handleClear(interaction, guild) {
@@ -283,7 +281,7 @@ async function handleClear(interaction, guild) {
         ]
     });
     
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed] });
 }
 
 async function handleListAll(interaction, guild) {
@@ -302,7 +300,7 @@ async function handleListAll(interaction, guild) {
             ]
         });
         
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.reply({ embeds: [embed] });
         return;
     }
     
@@ -332,7 +330,7 @@ async function handleListAll(interaction, guild) {
         ]
     });
     
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed] });
 }
 
 async function handleCheck(interaction, guild) {
@@ -341,7 +339,7 @@ async function handleCheck(interaction, guild) {
     
     if (!member) {
         const errorEmbed = createErrorEmbed('User Not Found', 'User is not a member of this server.');
-        await interaction.editReply({ embeds: [errorEmbed] });
+        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         return;
     }
     
@@ -368,7 +366,7 @@ async function handleCheck(interaction, guild) {
             ]
         });
         
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.reply({ embeds: [embed] });
         return;
     }
     
@@ -409,5 +407,5 @@ async function handleCheck(interaction, guild) {
         ]
     });
     
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed] });
 }

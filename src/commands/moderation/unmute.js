@@ -18,8 +18,6 @@ module.exports = {
                 .setRequired(false)),
     
     async execute(interaction) {
-        await interaction.deferReply();
-        
         const targetUser = interaction.options.getUser('member');
         const reason = interaction.options.getString('reason') || 'No reason provided';
         const executor = interaction.member;
@@ -36,7 +34,7 @@ module.exports = {
                     'Insufficient Permissions',
                     'You do not have permission to unmute members.'
                 );
-                await interaction.editReply({ embeds: [errorEmbed] });
+                return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                 return;
             }
             
@@ -49,7 +47,7 @@ module.exports = {
                     'User Not Found',
                     'The specified user is not a member of this server.'
                 );
-                await interaction.editReply({ embeds: [errorEmbed] });
+                return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                 return;
             }
             
@@ -60,7 +58,7 @@ module.exports = {
                     'Mute Role Not Found',
                     'The mute role has not been set up. Please run `/setup` first to create the moderation system.'
                 );
-                await interaction.editReply({ embeds: [errorEmbed] });
+                return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                 return;
             }
             
@@ -70,7 +68,7 @@ module.exports = {
                     'User Not Muted',
                     'This user is not currently muted.'
                 );
-                await interaction.editReply({ embeds: [errorEmbed] });
+                return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                 return;
             }
             
@@ -85,14 +83,14 @@ module.exports = {
                         'Cannot Execute Unmute', 
                         'You cannot unmute users with equal or higher roles.'
                     );
-                    await interaction.editReply({ embeds: [errorEmbed] });
+                    return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                     return;
                 }
             } else {
                 const canExecute = await canExecuteOn(executor, targetMember, 'manage_messages');
                 if (!canExecute.canExecute) {
                     const errorEmbed = createErrorEmbed('Cannot Execute Unmute', canExecute.reason);
-                    await interaction.editReply({ embeds: [errorEmbed] });
+                    return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                     return;
                 }
             }
@@ -115,7 +113,7 @@ module.exports = {
             }
             
             const errorEmbed = createErrorEmbed('Unmute Failed', errorMessage);
-            await interaction.editReply({ embeds: [errorEmbed] });
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
     },
 };
@@ -206,7 +204,7 @@ async function executeUnmute(interaction, guild, executor, targetMember, reason,
         color: 0x00FF00 // Green color for unmute
     });
     
-    await interaction.editReply({ embeds: [unmuteEmbed] });
+    await interaction.reply({ embeds: [unmuteEmbed] });
     
     // Try to DM the user
     let dmSent = false;

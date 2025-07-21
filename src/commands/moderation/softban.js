@@ -30,8 +30,6 @@ module.exports = {
         ),
 
     async execute(interaction) {
-        await interaction.deferReply();
-        
         const targetUser = interaction.options.getUser('member');
         const deleteHistory = interaction.options.getInteger('delete_history') ?? 1; // Default 1 day
         const reason = interaction.options.getString('reason') || 'No reason provided';
@@ -44,8 +42,7 @@ module.exports = {
                 'Cannot Execute Softban',
                 'You cannot softban yourself.'
             );
-            await interaction.editReply({ embeds: [errorEmbed] });
-            return;
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
         
         try {
@@ -57,7 +54,7 @@ module.exports = {
                     'Insufficient Permissions',
                     'You do not have permission to ban members.'
                 );
-                await interaction.editReply({ embeds: [errorEmbed] });
+                return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                 return;
             }
             
@@ -76,7 +73,7 @@ module.exports = {
                         'Cannot Execute Softban',
                         canExecute.reason
                     );
-                    await interaction.editReply({ embeds: [errorEmbed] });
+                    return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                     return;
                 }
                 
@@ -86,7 +83,7 @@ module.exports = {
                         'Cannot Execute Softban',
                         'I cannot softban someone with an equal or higher role than me.'
                     );
-                    await interaction.editReply({ embeds: [errorEmbed] });
+                    return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                     return;
                 }
                 
@@ -96,7 +93,7 @@ module.exports = {
                         'Cannot Execute Softban',
                         'I cannot softban this user. They may have higher permissions than me.'
                     );
-                    await interaction.editReply({ embeds: [errorEmbed] });
+                    return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                     return;
                 }
             }
@@ -107,7 +104,7 @@ module.exports = {
                     'Cannot Execute Softban',
                     'I cannot softban myself.'
                 );
-                await interaction.editReply({ embeds: [errorEmbed] });
+                return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                 return;
             }
 
@@ -165,7 +162,7 @@ module.exports = {
                 'success'
             );
 
-            await interaction.editReply({ embeds: [successEmbed] });
+            await interaction.reply({ embeds: [successEmbed] });
 
             // Log to jail-log channel if it exists
             const GuildConfig = require('../../models/GuildConfig');

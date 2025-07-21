@@ -29,8 +29,6 @@ module.exports = {
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
     
     async execute(interaction) {
-        await interaction.deferReply();
-        
         const subcommand = interaction.options.getSubcommand();
         const guild = interaction.guild;
         
@@ -48,7 +46,7 @@ module.exports = {
                 'Staff Role Configuration Failed',
                 `An error occurred while configuring staff role: ${error.message}`
             );
-            await interaction.editReply({ embeds: [errorEmbed] });
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
     },
 };
@@ -64,7 +62,7 @@ async function handleAdd(interaction, guild) {
             'Staff Role Configuration',
             `**${role.name}** is already set as a staff role.`
         );
-        await interaction.editReply({ embeds: [errorEmbed] });
+        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         return;
     }
     
@@ -93,13 +91,13 @@ async function handleAdd(interaction, guild) {
             ]
         });
         
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.reply({ embeds: [embed] });
     } else {
         const errorEmbed = createErrorEmbed(
             'Staff Role Configuration Failed',
             result.message
         );
-        await interaction.editReply({ embeds: [errorEmbed] });
+        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
 }
 
@@ -113,7 +111,7 @@ async function handleRemove(interaction, guild) {
             'Staff Role Configuration',
             `**${role.name}** is not set as a staff role.`
         );
-        await interaction.editReply({ embeds: [errorEmbed] });
+        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         return;
     }
     
@@ -137,13 +135,13 @@ async function handleRemove(interaction, guild) {
             ]
         });
         
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.reply({ embeds: [embed] });
     } else {
         const errorEmbed = createErrorEmbed(
             'Staff Role Configuration Failed',
             result.message
         );
-        await interaction.editReply({ embeds: [errorEmbed] });
+        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
 }
 
@@ -168,7 +166,7 @@ async function handleView(interaction, guild) {
             ]
         });
         
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.reply({ embeds: [embed] });
         return;
     }
     
@@ -217,5 +215,5 @@ async function handleView(interaction, guild) {
         });
     }
     
-    await interaction.editReply({ embeds: [embed] });
+    await interaction.reply({ embeds: [embed] });
 }

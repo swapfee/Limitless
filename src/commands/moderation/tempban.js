@@ -26,8 +26,6 @@ module.exports = {
                 .setRequired(false)),
     
     async execute(interaction) {
-        await interaction.deferReply();
-        
         const targetUser = interaction.options.getUser('member');
         const timeString = interaction.options.getString('time');
         const reason = interaction.options.getString('reason') || 'No reason provided';
@@ -41,7 +39,7 @@ module.exports = {
                 'Cannot Execute Tempban',
                 'You cannot temporarily ban yourself.'
             );
-            await interaction.editReply({ embeds: [errorEmbed] });
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
             return;
         }
         
@@ -52,7 +50,7 @@ module.exports = {
                 'Invalid Time Format',
                 'Please use a valid time format (e.g., 1h, 30m, 1d, 7d).\nSupported units: s (seconds), m (minutes), h (hours), d (days)'
             );
-            await interaction.editReply({ embeds: [errorEmbed] });
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
             return;
         }
         
@@ -65,7 +63,7 @@ module.exports = {
                 'Duration Too Long',
                 'Temporary bans cannot exceed 30 days. Use the regular ban command for permanent bans.'
             );
-            await interaction.editReply({ embeds: [errorEmbed] });
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
             return;
         }
         
@@ -74,7 +72,7 @@ module.exports = {
                 'Duration Too Short',
                 'Temporary bans must be at least 1 minute long.'
             );
-            await interaction.editReply({ embeds: [errorEmbed] });
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
             return;
         }
         
@@ -90,7 +88,7 @@ module.exports = {
                     'User Already Temporarily Banned',
                     `This user is already temporarily banned. They will be automatically unbanned <t:${Math.floor(existingBan.unbanTime.getTime() / 1000)}:R>.`
                 );
-                await interaction.editReply({ embeds: [errorEmbed] });
+                return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                 return;
             }
             
@@ -103,7 +101,7 @@ module.exports = {
                     'Insufficient Permissions',
                     'You do not have permission to ban members.'
                 );
-                await interaction.editReply({ embeds: [errorEmbed] });
+                return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                 return;
             }
             
@@ -128,7 +126,7 @@ module.exports = {
                             'Cannot Execute Tempban', 
                             'You cannot temporarily ban users with equal or higher roles.'
                         );
-                        await interaction.editReply({ embeds: [errorEmbed] });
+                        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                         return;
                     }
                 }
@@ -137,7 +135,7 @@ module.exports = {
                     const canExecute = await canExecuteOn(executor, targetMember, 'ban_members');
                     if (!canExecute.canExecute) {
                         const errorEmbed = createErrorEmbed('Cannot Execute Tempban', canExecute.reason);
-                        await interaction.editReply({ embeds: [errorEmbed] });
+                        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                         return;
                     }
                 }
@@ -163,7 +161,7 @@ module.exports = {
             }
             
             const errorEmbed = createErrorEmbed('Tempban Failed', errorMessage);
-            await interaction.editReply({ embeds: [errorEmbed] });
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
     },
 };
@@ -306,7 +304,7 @@ async function executeTempBan(interaction, guild, executor, targetUser, reason, 
         ]
     });
     
-    await interaction.editReply({ embeds: [tempbanEmbed] });
+    await interaction.reply({ embeds: [tempbanEmbed] });
     
     // Log to jail-log channel
     await logTempBanAction(guild, {

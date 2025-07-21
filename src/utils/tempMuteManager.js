@@ -97,37 +97,53 @@ class TempMuteManager {
                 return;
             }
 
-            // Find the mute role
-            const muteRole = guild.roles.cache.find(role => role.name === 'mute');
-            if (!muteRole) {
-                console.log(`Mute role not found in guild ${tempMute.guildId}, removing temp mute record`);
-                await TempMute.removeTempMute(tempMute.guildId, tempMute.userId);
-                return;
-            }
-
-            // Check if the user still has the mute role
-            if (!member.roles.cache.has(muteRole.id)) {
-                console.log(`Member ${tempMute.userId} no longer has mute role, removing temp mute record`);
-                await TempMute.removeTempMute(tempMute.guildId, tempMute.userId);
-                return;
-            }
-
-            // Remove the mute role
-            await member.roles.remove(muteRole, 'Temporary mute expired (automatic)');
+            // Find the appropriate mute role based on muteType
+            let muteRole;
+            const muteType = tempMute.muteType || 'mute'; // Default to 'mute' for backward compatibility
             
-            console.log(`Automatically unmuted ${member.user.tag} (${tempMute.userId}) in ${guild.name}`);
+            if (muteType === 'imute') {
+                muteRole = guild.roles.cache.find(role => role.name === 'imute');
+            } else if (muteType === 'rmute') {
+                muteRole = guild.roles.cache.find(role => role.name === 'rmute');
+            } else if (muteType === 'jail') {
+                muteRole = guild.roles.cache.find(role => role.name === 'Jailed');
+            } else {
+                muteRole = guild.roles.cache.find(role => role.name === 'mute');
+            }
+            
+            if (!muteRole) {
+                console.log(`${muteType} role not found in guild ${tempMute.guildId}, removing temp mute record`);
+                await TempMute.removeTempMute(tempMute.guildId, tempMute.userId);
+                return;
+            }
+
+            // Check if the user still has the appropriate mute role
+            if (!member.roles.cache.has(muteRole.id)) {
+                console.log(`Member ${tempMute.userId} no longer has ${muteType} role, removing temp mute record`);
+                await TempMute.removeTempMute(tempMute.guildId, tempMute.userId);
+                return;
+            }
+
+            // Remove the appropriate mute role
+            await member.roles.remove(muteRole, `Temporary ${muteType} expired (automatic)`);
+            
+            console.log(`Automatically ${muteType === 'imute' ? 'image un' : muteType === 'rmute' ? 'reaction un' : 'un'}muted ${member.user.tag} (${tempMute.userId}) in ${guild.name}`);
 
             // Create moderation case for automatic unmute
             try {
+                const unmuteType = muteType === 'imute' ? 'iunmute' : 
+                                  muteType === 'rmute' ? 'runmute' : 
+                                  muteType === 'jail' ? 'unjail' : 'unmute';
                 await createModerationCase({
                     guildId: guild.id,
-                    type: 'unmute',
+                    type: unmuteType,
                     target: { id: member.id, tag: member.user.tag },
                     executor: { id: this.client.user.id, tag: this.client.user.tag },
-                    reason: 'Temporary mute expired (automatic)',
+                    reason: `Temporary ${muteType} expired (automatic)`,
                     additionalInfo: {
                         automatic: true,
-                        originalDuration: tempMute.muteDuration
+                        originalDuration: tempMute.muteDuration,
+                        muteType: muteType
                     }
                 });
             } catch (error) {
@@ -136,9 +152,16 @@ class TempMuteManager {
 
             // Try to DM the user
             try {
+                const muteTypeName = muteType === 'imute' ? 'image mute' : 
+                                   muteType === 'rmute' ? 'reaction mute' : 
+                                   muteType === 'jail' ? 'jail sentence' : 'mute';
+                const actionText = muteType === 'imute' ? 'upload files and images' : 
+                                 muteType === 'rmute' ? 'add reactions' : 
+                                 muteType === 'jail' ? 'access all channels' : 'send messages';
+                
                 const dmEmbed = await createEmbed(guild.id, {
-                    title: 'You Have Been Automatically Unmuted',
-                    description: `Your temporary mute in **${guild.name}** has expired and you can now send messages again.`,
+                    title: `You Have Been Automatically ${muteType === 'imute' ? 'Image ' : muteType === 'rmute' ? 'Reaction ' : muteType === 'jail' ? 'Un' : ''}${muteType === 'jail' ? 'jailed' : 'Unmuted'}`,
+                    description: `Your temporary ${muteTypeName} in **${guild.name}** has expired and you can now ${actionText} again.`,
                     fields: [
                         {
                             name: 'Original Duration',

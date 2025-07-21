@@ -1,4 +1,4 @@
-const { Events } = require('discord.js');
+const { Events, InteractionResponseFlags } = require('discord.js');
 
 module.exports = {
     name: Events.InteractionCreate,
@@ -22,13 +22,17 @@ module.exports = {
                 
                 const errorMessage = {
                     content: 'There was an error while executing this command!',
-                    ephemeral: true
+                    flags: InteractionResponseFlags.Ephemeral
                 };
 
-                if (interaction.replied || interaction.deferred) {
-                    await interaction.followUp(errorMessage);
-                } else {
-                    await interaction.reply(errorMessage);
+                try {
+                    if (interaction.replied || interaction.deferred) {
+                        await interaction.followUp(errorMessage);
+                    } else {
+                        await interaction.reply(errorMessage);
+                    }
+                } catch (responseError) {
+                    console.error('Failed to send error response:', responseError);
                 }
             }
         }
