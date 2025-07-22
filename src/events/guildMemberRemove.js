@@ -40,10 +40,23 @@ module.exports = {
             }
             
             // Log the action
-            await AntiNukeLog.logAction(guild.id, executor.id, 'memberKick', {
-                kickedUserId: member.user.id,
-                kickedUserTag: member.user.tag,
-                reason: auditEntry.reason
+            await AntiNukeLog.logAction({
+                guildId: guild.id,
+                userId: executor.id,
+                actionType: 'memberKick',
+                targetType: 'member',
+                targetId: member.user.id,
+                targetName: member.user.tag,
+                executor: {
+                    id: executor.id,
+                    tag: executor.tag,
+                    username: executor.username
+                },
+                details: {
+                    kickedUserId: member.user.id,
+                    kickedUserTag: member.user.tag,
+                    reason: auditEntry.reason
+                }
             });
             
             // Increment counter and check limit

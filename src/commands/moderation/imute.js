@@ -75,13 +75,12 @@ module.exports = {
         
         try {
             // Check permissions
-            const hasRealPermission = executor.permissions.has(PermissionFlagsBits.ManageMessages);
-            const hasFakePermission = await hasPermission(executor, 'manage_messages');
+            const permissionCheck = await hasPermission(executor, 'manage_messages');
             
-            if (!hasRealPermission && !hasFakePermission.hasPermission) {
+            if (!permissionCheck.hasPermission) {
                 const errorEmbed = createErrorEmbed(
                     'Insufficient Permissions',
-                    'You do not have permission to image mute members.'
+                    permissionCheck.reason || 'You do not have permission to image mute members.'
                 );
                 return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
             }
@@ -117,25 +116,11 @@ module.exports = {
                 return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
             }
             
-            // Permission-based hierarchy and security checks
-            if (hasRealPermission) {
-                const executorHighestRole = executor.roles.highest;
-                const targetHighestRole = targetMember.roles.highest;
-                
-                if (!executor.permissions.has(PermissionFlagsBits.Administrator) && 
-                    targetHighestRole.position >= executorHighestRole.position) {
-                    const errorEmbed = createErrorEmbed(
-                        'Cannot Execute Image Mute', 
-                        'You cannot image mute users with equal or higher roles.'
-                    );
-                    return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                }
-            } else {
-                const canExecute = await canExecuteOn(executor, targetMember, 'manage_messages');
-                if (!canExecute.canExecute) {
-                    const errorEmbed = createErrorEmbed('Cannot Execute Image Mute', canExecute.reason);
-                    return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                }
+            // Check execution rights
+            const canExecute = await canExecuteOn(executor, targetMember, 'manage_messages');
+            if (!canExecute.canExecute) {
+                const errorEmbed = createErrorEmbed('Cannot Execute Image Mute', canExecute.reason);
+                return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
             }
             
             // Execute the image mute

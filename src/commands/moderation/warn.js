@@ -205,13 +205,12 @@ module.exports = {
                 }
             } else {
                 // Handle main warn subcommands with proper permission checking
-                const hasRealPermission = moderator.permissions.has(PermissionFlagsBits.ManageMessages);
-                const hasFakePermission = await hasPermission(moderator, 'manage_messages');
+                const permissionCheck = await hasPermission(moderator, 'manage_messages');
                 
-                if (!hasRealPermission && !hasFakePermission.hasPermission) {
+                if (!permissionCheck.hasPermission) {
                     const errorEmbed = await createEmbed(guild.id, {
                         title: 'Insufficient Permissions',
-                        description: 'You do not have permission to manage messages (warn users).',
+                        description: permissionCheck.reason || 'You do not have permission to manage messages (warn users).',
                         color: 0xFF0000
                     });
                     return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
@@ -283,34 +282,17 @@ async function handleWarnAdd(interaction, guild, moderator) {
         const member = await guild.members.fetch(targetUser.id);
 
         // Check permissions and role hierarchy
-        const hasRealPermission = moderator.permissions.has(PermissionFlagsBits.ManageMessages);
-        const hasFakePermission = await hasPermission(moderator, 'manage_messages');
+        const permissionCheck = await hasPermission(moderator, 'manage_messages');
 
-        if (hasRealPermission) {
-            // Real permission - check role hierarchy
-            const executorHighestRole = moderator.roles.highest;
-            const targetHighestRole = member.roles.highest;
-            
-            if (!moderator.permissions.has(PermissionFlagsBits.Administrator) && 
-                targetHighestRole.position >= executorHighestRole.position) {
-                const errorEmbed = await createEmbed(guild.id, {
-                    title: 'Cannot Execute Warning', 
-                    description: 'You cannot warn users with equal or higher roles.',
-                    color: 0xFF0000
-                });
-                return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-            }
-        } else if (hasFakePermission.hasPermission) {
-            // Fake permission - use canExecuteOn check
-            const canExecute = await canExecuteOn(moderator, member, 'manage_messages');
-            if (!canExecute.canExecute) {
-                const errorEmbed = await createEmbed(guild.id, {
-                    title: 'Cannot Execute Warning', 
-                    description: canExecute.reason,
-                    color: 0xFF0000
-                });
-                return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-            }
+        // Check if user can execute on target (handles role hierarchy and whitelist checks)
+        const canExecute = await canExecuteOn(moderator, member, 'manage_messages');
+        if (!canExecute.canExecute) {
+            const errorEmbed = await createEmbed(guild.id, {
+                title: 'Cannot Execute Warning', 
+                description: canExecute.reason,
+                color: 0xFF0000
+            });
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }
 
         // Check if bot can manage this user (for potential auto-punishments)

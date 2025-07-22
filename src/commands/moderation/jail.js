@@ -42,13 +42,12 @@ module.exports = {
         }
 
         try {
-            const hasRealPermission = executor.permissions.has(PermissionFlagsBits.ManageMessages);
-            const hasFakePermission = await hasPermission(executor, 'manage_messsages');
+            const permissionCheck = await hasPermission(executor, 'manage_messages');
             
-            if (!hasRealPermission && !hasFakePermission.hasPermission) {
+            if (!permissionCheck.hasPermission) {
                 const errorEmbed = createErrorEmbed(
                     'Insufficient Permissions',
-                    'You do not have permission to moderate members.'
+                    permissionCheck.reason || 'You do not have permission to moderate members.'
                 );
                 return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
             }
@@ -60,43 +59,20 @@ module.exports = {
                 targetMember = null;
             }
 
-            if (hasRealPermission) {
-                if (targetMember) {
-                    // Check if we can execute on this target with real permissions
-                    const canExecute = await canExecuteOn(executor, targetMember, 'manage_messsages');
-                    if (!canExecute.canExecute) {
-                        const errorEmbed = createErrorEmbed(
-                            'Cannot Jail User',
-                            canExecute.reason
-                        );
-                        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                    }
-                }
-            } else {
-                // Using fake permissions - additional checks
-                if (!targetMember) {
-                    const errorEmbed = createErrorEmbed(
-                        'User Not Found',
-                        'The specified user is not a member of this server.'
-                    );
-                    return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                }
-                
-                const canExecute = await canExecuteOn(executor, targetMember, 'moderate_members');
-                if (!canExecute.canExecute) {
-                    const errorEmbed = createErrorEmbed(
-                        'Cannot Jail User',
-                        canExecute.reason
-                    );
-                    return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                }
-            }
-
-            // Ensure we have a target member for the rest of the operation
+            // Ensure we have target member and check execution rights
             if (!targetMember) {
                 const errorEmbed = createErrorEmbed(
                     'User Not Found',
                     'The specified user is not a member of this server.'
+                );
+                return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+            }
+            
+            const canExecute = await canExecuteOn(executor, targetMember, 'manage_messages');
+            if (!canExecute.canExecute) {
+                const errorEmbed = createErrorEmbed(
+                    'Cannot Jail User',
+                    canExecute.reason
                 );
                 return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
             }

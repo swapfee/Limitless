@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, InteractionResponseFlags } = require('discord.js');
 const { createEmbed, createSuccessEmbed, createErrorEmbed } = require('../../utils/embedUtils');
 const JailConfig = require('../../models/JailConfig');
 
@@ -10,6 +10,10 @@ module.exports = {
     
     async execute(interaction) {
         const guild = interaction.guild;
+        
+        // Defer the reply immediately to prevent timeout
+        await interaction.deferReply();
+        
         const setupResults = {
             roles: [],
             channels: [],
@@ -73,12 +77,14 @@ module.exports = {
                 {
                     name: 'jail-log',
                     type: ChannelType.GuildText,
-                    description: 'Logs all moderation actions done through the bot'
+                    description: 'Logs all moderation actions done through the bot',
+                    private: true // This channel should be private from @everyone
                 },
                 {
                     name: 'jail',
                     type: ChannelType.GuildText,
-                    description: 'Where jailed users are restricted to'
+                    description: 'Where jailed users are restricted to',
+                    private: false
                 }
             ];
             
@@ -87,12 +93,24 @@ module.exports = {
                     let existingChannel = guild.channels.cache.find(channel => channel.name === channelData.name);
                     
                     if (!existingChannel) {
-                        await guild.channels.create({
+                        const channelOptions = {
                             name: channelData.name,
                             type: channelData.type,
                             reason: 'Moderation system setup'
-                        });
-                        setupResults.channels.push(`Created channel: #${channelData.name}`);
+                        };
+                        
+                        // Set initial permissions for private channels
+                        if (channelData.private) {
+                            channelOptions.permissionOverwrites = [
+                                {
+                                    id: guild.roles.everyone.id,
+                                    deny: [PermissionFlagsBits.ViewChannel]
+                                }
+                            ];
+                        }
+                        
+                        await guild.channels.create(channelOptions);
+                        setupResults.channels.push(`Created channel: #${channelData.name}${channelData.private ? ' (private)' : ''}`);
                     } else {
                         setupResults.channels.push(`Channel already exists: #${channelData.name}`);
                     }
@@ -123,46 +141,20 @@ module.exports = {
                     await JailConfig.setJailRole(guild.id, jailedRole.id);
                     setupResults.roles.push('Jailed role saved to database');
                 }
+                
+                // Also check for existing channels from database and update permissions
+                await updateExistingChannelPermissions(guild, setupResults);
+                
             } catch (error) {
                 setupResults.errors.push(`Failed to save jail configuration to database: ${error.message}`);
             }
             
             const embed = await createEmbed(guild.id, {
-                title: 'Moderation System Setup Complete',
-                description: 'Your server has been configured with moderation roles and channels.',
-                fields: [
-                    {
-                        name: 'Roles Created/Verified',
-                        value: setupResults.roles.join('\n') || 'None',
-                        inline: false
-                    },
-                    {
-                        name: 'Channels Created/Verified', 
-                        value: setupResults.channels.join('\n') || 'None',
-                        inline: false
-                    },
-                    {
-                        name: 'Role Descriptions',
-                        value: '**mute** - Restricts users from sending messages\n**imute** - Restricts users from uploading attachments\n**rmute** - Restricts users from reacting to messages\n**Jailed** - Restricts users from all channels except #jail',
-                        inline: false
-                    },
-                    {
-                        name: 'Channel Purposes',
-                        value: '**#jail-log** - Logs all moderation actions\n**#jail** - Where jailed users are restricted to',
-                        inline: false
-                    }
-                ]
+                title: 'Setup Complete',
+                description: 'Moderation system has been successfully configured with all necessary roles and channels.'
             });
             
-            if (setupResults.errors.length > 0) {
-                embed.addFields({
-                    name: 'Errors Encountered',
-                    value: setupResults.errors.join('\n'),
-                    inline: false
-                });
-            }
-            
-            await interaction.reply({ embeds: [embed] });
+            await interaction.editReply({ embeds: [embed] });
             
         } catch (error) {
             console.error('Error in setup command:', error);
@@ -170,7 +162,16 @@ module.exports = {
                 'Setup Failed',
                 `An error occurred during setup: ${error.message}`
             );
-            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+            
+            try {
+                if (interaction.deferred) {
+                    return interaction.editReply({ embeds: [errorEmbed] });
+                } else {
+                    return interaction.reply({ embeds: [errorEmbed], flags: InteractionResponseFlags.Ephemeral });
+                }
+            } catch (replyError) {
+                console.error('Failed to send error response:', replyError);
+            }
         }
     },
 };
@@ -262,9 +263,67 @@ async function setupPermissions(guild, setupResults) {
             }
         }
         
+        // Set up jail-log channel permissions (make it private from @everyone)
+        const jailLogChannel = guild.channels.cache.find(channel => channel.name === 'jail-log');
+        if (jailLogChannel) {
+            try {
+                const existingEveryonePermissions = jailLogChannel.permissionOverwrites.cache.get(guild.roles.everyone.id);
+                
+                if (!existingEveryonePermissions || 
+                    existingEveryonePermissions.deny.has('ViewChannel') !== true) {
+                    
+                    await jailLogChannel.permissionOverwrites.create(guild.roles.everyone, {
+                        ViewChannel: false
+                    });
+                    setupResults.roles.push('Jail log channel made private from @everyone');
+                } else {
+                    setupResults.roles.push('Jail log channel already private from @everyone');
+                }
+                
+            } catch (error) {
+                setupResults.errors.push(`Failed to set jail log channel permissions: ${error.message}`);
+            }
+        }
+        
         setupResults.roles.push('Permissions configured for all channels');
         
     } catch (error) {
         setupResults.errors.push(`Permission setup failed: ${error.message}`);
+    }
+}
+
+/**
+ * Update permissions for existing channels that may be configured in the database
+ * @param {Guild} guild - The Discord guild
+ * @param {Object} setupResults - Results object to log actions to
+ */
+async function updateExistingChannelPermissions(guild, setupResults) {
+    try {
+        // Get jail log channel ID from database
+        const jailLogChannelId = await JailConfig.getJailLogChannelId(guild.id);
+        
+        if (jailLogChannelId) {
+            const jailLogChannel = guild.channels.cache.get(jailLogChannelId);
+            
+            if (jailLogChannel) {
+                const existingEveryonePermissions = jailLogChannel.permissionOverwrites.cache.get(guild.roles.everyone.id);
+                
+                if (!existingEveryonePermissions || 
+                    existingEveryonePermissions.deny.has('ViewChannel') !== true) {
+                    
+                    await jailLogChannel.permissionOverwrites.create(guild.roles.everyone, {
+                        ViewChannel: false
+                    });
+                    setupResults.roles.push(`Updated jail log channel permissions (Channel ID: ${jailLogChannelId})`);
+                } else {
+                    setupResults.roles.push(`Jail log channel permissions already configured (Channel ID: ${jailLogChannelId})`);
+                }
+            } else {
+                setupResults.errors.push(`Jail log channel not found (Channel ID: ${jailLogChannelId} - channel may have been deleted)`);
+            }
+        }
+        
+    } catch (error) {
+        setupResults.errors.push(`Failed to update existing channel permissions: ${error.message}`);
     }
 }

@@ -16,8 +16,8 @@ const client = new Client({
         GatewayIntentBits.GuildMembers, // Privileged intent - must be enabled in Discord Developer Portal
         GatewayIntentBits.GuildVoiceStates,
         GatewayIntentBits.GuildMessageReactions,
-        GatewayIntentBits.GuildBans, // Required for antinuke ban monitoring
-        GatewayIntentBits.GuildEmojisAndStickers, // Required for antinuke emoji monitoring
+        GatewayIntentBits.GuildModeration, // Required for antinuke ban monitoring
+        GatewayIntentBits.GuildExpressions, // Required for antinuke emoji monitoring
         GatewayIntentBits.GuildWebhooks, // Required for antinuke webhook monitoring
     ]
 });

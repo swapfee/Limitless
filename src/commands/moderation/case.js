@@ -56,17 +56,14 @@ module.exports = {
         const executor = interaction.member;
         const guild = interaction.guild;
         
-        const hasRealPermission = executor.permissions.has(PermissionFlagsBits.ViewAuditLog);
-        
-        const hasFakePermission = await hasPermission(executor, 'view_audit_log');
+        const permissionCheck = await hasPermission(executor, 'view_audit_log');
 
-        if (!hasRealPermission && !hasFakePermission.hasPermission) {
+        if (!permissionCheck.hasPermission) {
             const errorEmbed = createErrorEmbed(
                 'Insufficient Permissions',
-                'You need moderation permissions to view case information.'
+                permissionCheck.reason || 'You need moderation permissions to view case information.'
             );
             return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-            return;
         }
 
         const subcommand = interaction.options.getSubcommand();

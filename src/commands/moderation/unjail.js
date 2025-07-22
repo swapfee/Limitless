@@ -19,8 +19,7 @@ module.exports = {
                 .setName('reason')
                 .setDescription('Reason for removing from jail')
                 .setRequired(false)
-        )
-        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+        ),
 
     async execute(interaction) {
         const targetUser = interaction.options.getUser('user');
@@ -28,7 +27,6 @@ module.exports = {
         const guild = interaction.guild;
         const moderator = interaction.member;
 
-        // Check if user is trying to unjail themselves
         if (targetUser.id === moderator.user.id) {
             const errorEmbed = createErrorEmbed(
                 'Cannot Execute Unjail',
@@ -38,13 +36,12 @@ module.exports = {
         }
 
         try {
-            const hasRealPermission = moderator.permissions.has(PermissionFlagsBits.ModerateMembers);
-            const hasFakePermission = await hasPermission(moderator, 'moderate_members');
+            const permissionCheck = await hasPermission(moderator, 'manage_messages');
             
-            if (!hasRealPermission && !hasFakePermission.hasPermission) {
+            if (!permissionCheck.hasPermission) {
                 const errorEmbed = createErrorEmbed(
                     'Insufficient Permissions',
-                    'You do not have permission to moderate members.'
+                    permissionCheck.reason || 'You do not have permission to moderate members.'
                 );
                 return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
             }
@@ -56,43 +53,20 @@ module.exports = {
                 targetMember = null;
             }
 
-            if (hasRealPermission) {
-                if (targetMember) {
-                    // Check if we can execute on this target with real permissions
-                    const canExecute = await canExecuteOn(moderator, targetMember, 'moderate_members');
-                    if (!canExecute.canExecute) {
-                        const errorEmbed = createErrorEmbed(
-                            'Cannot Unjail User',
-                            canExecute.reason
-                        );
-                        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                    }
-                }
-            } else {
-                // Using fake permissions - additional checks
-                if (!targetMember) {
-                    const errorEmbed = createErrorEmbed(
-                        'User Not Found',
-                        'The specified user is not a member of this server.'
-                    );
-                    return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                }
-                
-                const canExecute = await canExecuteOn(moderator, targetMember, 'moderate_members');
-                if (!canExecute.canExecute) {
-                    const errorEmbed = createErrorEmbed(
-                        'Cannot Unjail User',
-                        canExecute.reason
-                    );
-                    return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                }
-            }
-
-            // Ensure we have a target member for the rest of the operation
+            // Ensure we have target member and check execution rights
             if (!targetMember) {
                 const errorEmbed = createErrorEmbed(
                     'User Not Found',
                     'The specified user is not a member of this server.'
+                );
+                return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+            }
+            
+            const canExecute = await canExecuteOn(moderator, targetMember, 'manage_messages');
+            if (!canExecute.canExecute) {
+                const errorEmbed = createErrorEmbed(
+                    'Cannot Unjail User',
+                    canExecute.reason
                 );
                 return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
             }

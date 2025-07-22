@@ -46,16 +46,14 @@ module.exports = {
         }
         
         try {
-            const hasRealPermission = executor.permissions.has(PermissionFlagsBits.BanMembers);
-            const hasFakePermission = await hasPermission(executor, 'ban_members');
+            const permissionCheck = await hasPermission(executor, 'ban_members');
             
-            if (!hasRealPermission && !hasFakePermission.hasPermission) {
+            if (!permissionCheck.hasPermission) {
                 const errorEmbed = createErrorEmbed(
                     'Insufficient Permissions',
-                    'You do not have permission to ban members.'
+                    permissionCheck.reason || 'You do not have permission to ban members.'
                 );
                 return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                return;
             }
             
             let targetMember;
@@ -74,7 +72,6 @@ module.exports = {
                         canExecute.reason
                     );
                     return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                    return;
                 }
                 
                 // Check if bot can ban the target (bot's role hierarchy)
@@ -84,7 +81,6 @@ module.exports = {
                         'I cannot softban someone with an equal or higher role than me.'
                     );
                     return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                    return;
                 }
                 
                 // Check if target is bannable

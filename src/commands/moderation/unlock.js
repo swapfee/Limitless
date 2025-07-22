@@ -39,13 +39,12 @@ module.exports = {
         const guild = interaction.guild;
 
         // Check permissions - need real or fake manage_channels
-        const hasRealPermission = executor.permissions.has(PermissionFlagsBits.ManageChannels);
-        const hasFakePermission = await hasPermission(executor, 'manage_channels');
+        const permissionCheck = await hasPermission(executor, 'manage_channels');
 
-        if (!hasRealPermission && !hasFakePermission.hasPermission) {
+        if (!permissionCheck.hasPermission) {
             const errorEmbed = createErrorEmbed(
                 'Insufficient Permissions',
-                'You need Manage Channels permission to unlock channels.'
+                permissionCheck.reason || 'You need Manage Channels permission to unlock channels.'
             );
             return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
         }

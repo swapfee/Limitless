@@ -93,16 +93,14 @@ module.exports = {
             }
             
             // Check permissions (same logic as ban command)
-            const hasRealPermission = executor.permissions.has(PermissionFlagsBits.BanMembers);
-            const hasFakePermission = await hasPermission(executor, 'ban_members');
+            const permissionCheck = await hasPermission(executor, 'ban_members');
             
-            if (!hasRealPermission && !hasFakePermission.hasPermission) {
+            if (!permissionCheck.hasPermission) {
                 const errorEmbed = createErrorEmbed(
                     'Insufficient Permissions',
-                    'You do not have permission to ban members.'
+                    permissionCheck.reason || 'You do not have permission to ban members.'
                 );
                 return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                return;
             }
             
             // Try to fetch the target member
@@ -114,30 +112,12 @@ module.exports = {
                 targetMember = null;
             }
             
-            // Permission-based hierarchy and security checks
-            if (hasRealPermission) {
-                if (targetMember) {
-                    const executorHighestRole = executor.roles.highest;
-                    const targetHighestRole = targetMember.roles.highest;
-                    
-                    if (!executor.permissions.has(PermissionFlagsBits.Administrator) && 
-                        targetHighestRole.position >= executorHighestRole.position) {
-                        const errorEmbed = createErrorEmbed(
-                            'Cannot Execute Tempban', 
-                            'You cannot temporarily ban users with equal or higher roles.'
-                        );
-                        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                        return;
-                    }
-                }
-            } else {
-                if (targetMember) {
-                    const canExecute = await canExecuteOn(executor, targetMember, 'ban_members');
-                    if (!canExecute.canExecute) {
-                        const errorEmbed = createErrorEmbed('Cannot Execute Tempban', canExecute.reason);
-                        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                        return;
-                    }
+            // Check execution rights if target member exists
+            if (targetMember) {
+                const canExecute = await canExecuteOn(executor, targetMember, 'ban_members');
+                if (!canExecute.canExecute) {
+                    const errorEmbed = createErrorEmbed('Cannot Execute Tempban', canExecute.reason);
+                    return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
                 }
             }
             

@@ -17,13 +17,7 @@ const { PermissionFlagsBits } = require('discord.js');
  * @returns {Promise<{hasPermission: boolean, source: string}>}
  */
 async function hasPermission(member, permission, allowFake = true) {
-    // Check real Discord permissions first
-    const discordPermission = getDiscordPermission(permission);
-    if (discordPermission && member.permissions.has(discordPermission)) {
-        return { hasPermission: true, source: 'discord' };
-    }
-    
-    // Check fake permissions if allowed
+    // Only check fake permissions - Discord permissions are ignored
     if (allowFake) {
         const userRoleIds = member.roles.cache.map(role => role.id);
         const hasFakePermission = await FakePermissions.hasPermission(
@@ -37,18 +31,6 @@ async function hasPermission(member, permission, allowFake = true) {
     }
     
     return { hasPermission: false, source: 'none' };
-}
-
-/**
- * Check if a user should be considered as having "real" permissions only
- * This is used to determine if someone can bypass fake permission restrictions
- * @param {GuildMember} member - The guild member to check
- * @param {string} permission - The permission to check for
- * @returns {Promise<boolean>}
- */
-async function hasRealPermission(member, permission) {
-    const discordPermission = getDiscordPermission(permission);
-    return discordPermission ? member.permissions.has(discordPermission) : false;
 }
 
 /**
@@ -111,7 +93,7 @@ async function canExecuteOn(executor, target, permission) {
         return { canExecute: false, reason: 'You do not have permission to perform this action' };
     }
     
-    // If executor only has fake permissions, check additional restrictions
+    // If user has fake permissions, check additional restrictions
     if (permissionCheck.source === 'fake') {
         // Check if target is whitelisted (has real permissions or staff roles)
         const targetWhitelisted = await isWhitelisted(target);
@@ -128,7 +110,7 @@ async function canExecuteOn(executor, target, permission) {
         }
     }
     
-    // Standard hierarchy check for all users
+    // Standard hierarchy check for all users (unless they have Administrator permission)
     if (!executor.permissions.has(PermissionFlagsBits.Administrator)) {
         const executorHighestRole = executor.roles.highest;
         const targetHighestRole = target.roles.highest;
@@ -148,10 +130,8 @@ async function canExecuteOn(executor, target, permission) {
  */
 function getPermissionSourceDescription(source) {
     switch (source) {
-        case 'discord':
-            return 'Discord Permission';
         case 'fake':
-            return 'Fake Permission (Bot Only)';
+            return 'Bot Permission';
         default:
             return 'No Permission';
     }
@@ -391,7 +371,6 @@ function hasDangerousPermissionChange(oldPermissions, newPermissions) {
 
 module.exports = {
     hasPermission,
-    hasRealPermission,
     isWhitelisted,
     canExecuteOn,
     getDiscordPermission,

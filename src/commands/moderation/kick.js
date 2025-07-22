@@ -32,14 +32,13 @@ module.exports = {
         }
         
         try {
-            // Check if user has real Discord permissions OR fake permissions
-            const hasRealPermission = executor.permissions.has(PermissionFlagsBits.KickMembers);
-            const hasFakePermission = await hasPermission(executor, 'kick_members');
+            // Check if user has permissions (real Discord permissions OR fake permissions)
+            const permissionCheck = await hasPermission(executor, 'kick_members');
             
-            if (!hasRealPermission && !hasFakePermission.hasPermission) {
+            if (!permissionCheck.hasPermission) {
                 const errorEmbed = createErrorEmbed(
                     'Insufficient Permissions',
-                    'You do not have permission to kick members.'
+                    permissionCheck.reason || 'You do not have permission to kick members.'
                 );
                 return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
             }
@@ -51,43 +50,20 @@ module.exports = {
                 targetMember = null;
             }
 
-            if (hasRealPermission) {
-                if (targetMember) {
-                    // Check if we can execute on this target with real permissions
-                    const canExecute = await canExecuteOn(executor, targetMember, 'kick_members');
-                    if (!canExecute.canExecute) {
-                        const errorEmbed = createErrorEmbed(
-                            'Cannot Kick User',
-                            canExecute.reason
-                        );
-                        return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                    }
-                }
-            } else {
-                // Using fake permissions - additional checks
-                if (!targetMember) {
-                    const errorEmbed = createErrorEmbed(
-                        'User Not Found',
-                        'The specified user is not a member of this server.'
-                    );
-                    return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                }
-                
-                const canExecute = await canExecuteOn(executor, targetMember, 'kick_members');
-                if (!canExecute.canExecute) {
-                    const errorEmbed = createErrorEmbed(
-                        'Cannot Kick User',
-                        canExecute.reason
-                    );
-                    return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                }
-            }
-
-            // Ensure we have a target member for the rest of the operation
+            // For all permissions (now only 'fake'), ensure we have target member and check execution rights
             if (!targetMember) {
                 const errorEmbed = createErrorEmbed(
                     'User Not Found',
                     'The specified user is not a member of this server.'
+                );
+                return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+            }
+            
+            const canExecute = await canExecuteOn(executor, targetMember, 'kick_members');
+            if (!canExecute.canExecute) {
+                const errorEmbed = createErrorEmbed(
+                    'Cannot Kick User',
+                    canExecute.reason
                 );
                 return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
             }

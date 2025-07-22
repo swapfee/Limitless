@@ -25,17 +25,14 @@ module.exports = {
         
         try {
             // Check permissions
-            const hasRealPermission = executor.permissions.has(PermissionFlagsBits.ManageMessages) || 
-                                    executor.permissions.has(PermissionFlagsBits.ModerateMembers);
-            const hasFakePermission = await hasPermission(executor, 'manage_messages');
+            const permissionCheck = await hasPermission(executor, 'manage_messages');
             
-            if (!hasRealPermission && !hasFakePermission.hasPermission) {
+            if (!permissionCheck.hasPermission) {
                 const errorEmbed = createErrorEmbed(
                     'Insufficient Permissions',
-                    'You do not have permission to unmute members.'
+                    permissionCheck.reason || 'You do not have permission to unmute members.'
                 );
                 return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                return;
             }
             
             // Try to fetch the target member
@@ -72,27 +69,11 @@ module.exports = {
                 return;
             }
             
-            // Permission-based hierarchy and security checks
-            if (hasRealPermission) {
-                const executorHighestRole = executor.roles.highest;
-                const targetHighestRole = targetMember.roles.highest;
-                
-                if (!executor.permissions.has(PermissionFlagsBits.Administrator) && 
-                    targetHighestRole.position >= executorHighestRole.position) {
-                    const errorEmbed = createErrorEmbed(
-                        'Cannot Execute Unmute', 
-                        'You cannot unmute users with equal or higher roles.'
-                    );
-                    return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                    return;
-                }
-            } else {
-                const canExecute = await canExecuteOn(executor, targetMember, 'manage_messages');
-                if (!canExecute.canExecute) {
-                    const errorEmbed = createErrorEmbed('Cannot Execute Unmute', canExecute.reason);
-                    return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
-                    return;
-                }
+            // Check execution rights
+            const canExecute = await canExecuteOn(executor, targetMember, 'manage_messages');
+            if (!canExecute.canExecute) {
+                const errorEmbed = createErrorEmbed('Cannot Execute Unmute', canExecute.reason);
+                return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
             }
             
             // Execute the unmute

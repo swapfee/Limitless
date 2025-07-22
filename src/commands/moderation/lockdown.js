@@ -155,14 +155,13 @@ async function handleLockChannel(interaction, executor, guild) {
     const reason = interaction.options.getString('reason');
 
     // Check permissions - either real manage_channels or lockdown role
-    const hasRealPermission = executor.permissions.has(PermissionFlagsBits.ManageChannels);
-    const hasFakePermission = await hasPermission(executor, 'manage_channels');
+    const permissionCheck = await hasPermission(executor, 'manage_channels');
     const hasLockdownRole = await LockdownConfig.canRoleLockdown(guild.id, executor.roles.cache.map(r => r.id));
 
-    if (!hasRealPermission && !hasFakePermission.hasPermission && !hasLockdownRole) {
+    if (!permissionCheck.hasPermission && !hasLockdownRole) {
         const errorEmbed = createErrorEmbed(
             'Insufficient Permissions',
-            'You need Manage Channels permission or a lockdown role to lock channels.'
+            permissionCheck.reason || 'You need Manage Channels permission or a lockdown role to lock channels.'
         );
         return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
@@ -293,12 +292,12 @@ async function handleLockAll(interaction, executor, guild) {
     const reason = interaction.options.getString('reason');
 
     // Check permissions - need real manage_channels
-    const hasRealPermission = executor.permissions.has(PermissionFlagsBits.ManageChannels);
+    const permissionCheck = await hasPermission(executor, 'manage_channels');
 
-    if (!hasRealPermission) {
+    if (!permissionCheck.hasPermission) {
         const errorEmbed = createErrorEmbed(
             'Insufficient Permissions',
-            'You need Manage Channels permission to lock all channels.'
+            permissionCheck.reason || 'You need Manage Channels permission to lock all channels.'
         );
         return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
@@ -444,13 +443,12 @@ async function handleAddLockdownRole(interaction, executor, guild) {
     const targetRole = interaction.options.getRole('role');
 
     // Check permissions - need real or fake manage_guild
-    const hasRealPermission = executor.permissions.has(PermissionFlagsBits.ManageGuild);
-    const hasFakePermission = await hasPermission(executor, 'manage_guild');
+    const permissionCheck = await hasPermission(executor, 'manage_guild');
 
-    if (!hasRealPermission && !hasFakePermission.hasPermission) {
+    if (!permissionCheck.hasPermission) {
         const errorEmbed = createErrorEmbed(
             'Insufficient Permissions',
-            'You need Manage Guild permission to manage lockdown roles.'
+            permissionCheck.reason || 'You need Manage Guild permission to manage lockdown roles.'
         );
         return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
@@ -482,13 +480,12 @@ async function handleRemoveLockdownRole(interaction, executor, guild) {
     const targetRole = interaction.options.getRole('role');
 
     // Check permissions - need real or fake manage_guild
-    const hasRealPermission = executor.permissions.has(PermissionFlagsBits.ManageGuild);
-    const hasFakePermission = await hasPermission(executor, 'manage_guild');
+    const permissionCheck = await hasPermission(executor, 'manage_guild');
 
-    if (!hasRealPermission && !hasFakePermission.hasPermission) {
+    if (!permissionCheck.hasPermission) {
         const errorEmbed = createErrorEmbed(
             'Insufficient Permissions',
-            'You need Manage Guild permission to manage lockdown roles.'
+            permissionCheck.reason || 'You need Manage Guild permission to manage lockdown roles.'
         );
         return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
@@ -518,13 +515,12 @@ async function handleRemoveLockdownRole(interaction, executor, guild) {
  */
 async function handleListLockdownRoles(interaction, executor, guild) {
     // Check permissions - need real or fake manage_guild
-    const hasRealPermission = executor.permissions.has(PermissionFlagsBits.ManageGuild);
-    const hasFakePermission = await hasPermission(executor, 'manage_guild');
+    const permissionCheck = await hasPermission(executor, 'manage_guild');
 
-    if (!hasRealPermission && !hasFakePermission.hasPermission) {
+    if (!permissionCheck.hasPermission) {
         const errorEmbed = createErrorEmbed(
             'Insufficient Permissions',
-            'You need Manage Guild permission to view lockdown roles.'
+            permissionCheck.reason || 'You need Manage Guild permission to view lockdown roles.'
         );
         return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
@@ -570,13 +566,12 @@ async function handleAddIgnoredChannel(interaction, executor, guild) {
     const targetChannel = interaction.options.getChannel('channel');
 
     // Check permissions - need real or fake manage_guild
-    const hasRealPermission = executor.permissions.has(PermissionFlagsBits.ManageGuild);
-    const hasFakePermission = await hasPermission(executor, 'manage_guild');
+    const permissionCheck = await hasPermission(executor, 'manage_guild');
 
-    if (!hasRealPermission && !hasFakePermission.hasPermission) {
+    if (!permissionCheck.hasPermission) {
         const errorEmbed = createErrorEmbed(
             'Insufficient Permissions',
-            'You need Manage Guild permission to manage ignored channels.'
+            permissionCheck.reason || 'You need Manage Guild permission to manage ignored channels.'
         );
         return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
@@ -608,13 +603,12 @@ async function handleRemoveIgnoredChannel(interaction, executor, guild) {
     const targetChannel = interaction.options.getChannel('channel');
 
     // Check permissions - need real or fake manage_guild
-    const hasRealPermission = executor.permissions.has(PermissionFlagsBits.ManageGuild);
-    const hasFakePermission = await hasPermission(executor, 'manage_guild');
+    const permissionCheck = await hasPermission(executor, 'manage_guild');
 
-    if (!hasRealPermission && !hasFakePermission.hasPermission) {
+    if (!permissionCheck.hasPermission) {
         const errorEmbed = createErrorEmbed(
             'Insufficient Permissions',
-            'You need Manage Guild permission to manage ignored channels.'
+            permissionCheck.reason || 'You need Manage Guild permission to manage ignored channels.'
         );
         return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
@@ -644,13 +638,12 @@ async function handleRemoveIgnoredChannel(interaction, executor, guild) {
  */
 async function handleListIgnoredChannels(interaction, executor, guild) {
     // Check permissions - need real or fake manage_guild
-    const hasRealPermission = executor.permissions.has(PermissionFlagsBits.ManageGuild);
-    const hasFakePermission = await hasPermission(executor, 'manage_guild');
+    const permissionCheck = await hasPermission(executor, 'manage_guild');
 
-    if (!hasRealPermission && !hasFakePermission.hasPermission) {
+    if (!permissionCheck.hasPermission) {
         const errorEmbed = createErrorEmbed(
             'Insufficient Permissions',
-            'You need Manage Guild permission to view ignored channels.'
+            permissionCheck.reason || 'You need Manage Guild permission to view ignored channels.'
         );
         return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
@@ -696,13 +689,12 @@ async function handleUnlockMass(interaction, executor, guild) {
     const reason = interaction.options.getString('reason');
 
     // Check permissions - need real or fake manage_channels
-    const hasRealPermission = executor.permissions.has(PermissionFlagsBits.ManageChannels);
-    const hasFakePermission = await hasPermission(executor, 'manage_channels');
+    const permissionCheck = await hasPermission(executor, 'manage_channels');
 
-    if (!hasRealPermission && !hasFakePermission.hasPermission) {
+    if (!permissionCheck.hasPermission) {
         const errorEmbed = createErrorEmbed(
             'Insufficient Permissions',
-            'You need Manage Channels permission to unlock channels.'
+            permissionCheck.reason || 'You need Manage Channels permission to unlock channels.'
         );
         return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
